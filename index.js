@@ -1,83 +1,93 @@
-const express = require('express');
 const { MongoClient } = require('mongodb');
-require('dotenv').config();
+const ObjectId = require("mongodb").ObjectId;
+const express = require('express');
 const cors = require('cors');
-
 const app = express();
-const port = process.env.PORT || 5000;
+require('dotenv').config();
+const port = process.env.PORT || 8030;
 
-// middleware
+//Middle Ware
 app.use(cors());
 app.use(express.json());
 
-const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.swu9d.mongodb.net/myFirstDatabase?retryWrites=true&w=majority`;
+const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.mvbo5.mongodb.net/myFirstDatabase?retryWrites=true&w=majority`;
 const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true });
 
 async function run() {
     try {
         await client.connect();
-        const database = client.db('online_travel_site');
-        const serviceCollection = database.collection('services');
-        const orderCollection = database.collection('orders');
+        const database = client.db('tour_service');
+        const packCollection = database.collection('package');
+        const userCollection = database.collection('userpackage');
 
-        //GET services API
-        app.get('/services', async (req, res) => {
-            const cursor = serviceCollection.find({});
-            const page = req.query.page;
-            const size = parseInt(req.query.size);
-            let services;
-            const count = await cursor.count();
-
-            if (page) {
-                services = await cursor.skip(page * size).limit(size).toArray();
-            }
-            else {
-                services = await cursor.toArray();
-            }
-
-            res.send({
-                count,
-                services
-            });
+        // Get Service API
+        app.get('/package', async (req, res) => {
+            const cursor = packCollection.find({});
+            const packages = await cursor.toArray();
+            res.send(packages);
+        });
+        // Find API
+        app.get("/userpackage", async (req, res) => {
+        const cursor = userCollection.find({});
+        const orders = await cursor.toArray();
+        res.send(orders);
+        });
+        // Get Api by users email
+        app.get("/userpackage/:email", async (req, res) => {
+        const cursor = userCollection.find({ email: req.params.email });
+        const orders = await cursor.toArray();
+        res.send(orders);
+        });
+        // Api Post
+        app.post("/userpackage", async (req, res) => {
+        const user = req.body;
+        const result = await userCollection.insertOne(user);
+        res.json(result);
+        });
+    
+        // Get a user data
+        app.get("/userpackage/:id", async (req, res) => {
+        const id = req.params.id;
+        const query = { _id: ObjectId(id) };
+        const result = await userCollection.findOne(query);
+        res.send(result);
         });
 
-        // Use POST to get data by keys
-        app.post('/services/byKeys', async (req, res) => {
-            const keys = req.body;
-            const query = { key: { $in: keys } }
-            const services = await serviceCollection.find(query).toArray();
-            res.send(services);
+        // Update Data By User
+        app.put("/userpackage/:id", async (req, res) => {
+        const id = req.params.id;
+        const updatedUser = req.body;
+        const filter = { _id: ObjectId(id) };
+        const options = { upsert: true };
+        const updateDoc = {
+            $set: {
+            status: updatedUser.status,
+            },
+        };
+        const resut = await userCollection.updateOne(filter, updateDoc, options);
+        res.json(resut);
         });
-
-        // Add Orders API
-        app.post('/orders', async (req, res) => {
-            const order = req.body;
-            const result = await orderCollection.insertOne(order);
-            res.json(result);
-        })
         
-        app.post('/booking', async (req, res) => {
-            const order = req.body;
-            const result = await orderCollection.insertOne(order);
-            res.json(result);
-        })
-        app.post('/bookingDetails', async (req, res) => {
-            const order = req.body;
-            const result = await orderCollection.insertOne(order);
-            res.json(result);
-        })
+        // Delete Order
+        app.delete("/userpackage/:id", async (req, res) => {
+        const id = req.params.id;
+        const query = { _id: ObjectId(id) };
+        const result = await userCollection.deleteOne(query);
+
+        res.json(result);
+        });
     }
     finally {
         // await client.close();
     }
 }
-
 run().catch(console.dir);
 
+
 app.get('/', (req, res) => {
-    res.send('travel site server is running');
+    res.send('Assignment Server Running');
 });
 
 app.listen(port, () => {
-    console.log('Server running at port', port);
-})
+    console.log("Example App Port", port)
+});
